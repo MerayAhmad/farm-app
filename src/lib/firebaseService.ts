@@ -86,6 +86,27 @@ export function getFirestoreDB() {
   return getFirestore(app);
 }
 
+// Helper function to remove undefined fields recursively so Firestore doesn't crash on 'undefined'
+function cleanFirestoreData(obj: any): any {
+  if (obj === null || obj === undefined) return null;
+  if (Array.isArray(obj)) {
+    return obj.map(cleanFirestoreData);
+  }
+  if (typeof obj === "object") {
+    const clean: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const val = obj[key];
+        if (val !== undefined) {
+          clean[key] = cleanFirestoreData(val);
+        }
+      }
+    }
+    return clean;
+  }
+  return obj;
+}
+
 // ==========================================
 // Firestore Data Operations & Sync Helpers
 // ==========================================
@@ -147,7 +168,7 @@ export async function saveFarmToFirestore(farm: Farm): Promise<void> {
     if (!isFirebaseConfigured()) return;
     const db = getFirestoreDB();
     const { id, ...data } = farm;
-    await setDoc(doc(db, "farms", id), data);
+    await setDoc(doc(db, "farms", id), cleanFirestoreData(data));
   } catch (error) {
     console.error(`Error saving farm ${farm.id} to Firestore:`, error);
     throw error;
@@ -172,7 +193,7 @@ export async function saveCowToFirestore(cow: Cow): Promise<void> {
     if (!isFirebaseConfigured()) return;
     const db = getFirestoreDB();
     const { id, ...data } = cow;
-    await setDoc(doc(db, "cows", id), data);
+    await setDoc(doc(db, "cows", id), cleanFirestoreData(data));
   } catch (error) {
     console.error(`Error saving cow ${cow.id} to Firestore:`, error);
     throw error;
@@ -197,7 +218,7 @@ export async function saveEventToFirestore(event: CattleEvent): Promise<void> {
     if (!isFirebaseConfigured()) return;
     const db = getFirestoreDB();
     const { id, ...data } = event;
-    await setDoc(doc(db, "events", id), data);
+    await setDoc(doc(db, "events", id), cleanFirestoreData(data));
   } catch (error) {
     console.error(`Error saving event ${event.id} to Firestore:`, error);
     throw error;
@@ -240,7 +261,7 @@ export async function saveUserToFirestore(user: UserAccount): Promise<void> {
     const db = getFirestoreDB();
     const { email, ...data } = user;
     const cleanEmail = email.trim().toLowerCase();
-    await setDoc(doc(db, "users", cleanEmail), data);
+    await setDoc(doc(db, "users", cleanEmail), cleanFirestoreData(data));
   } catch (error) {
     console.error(`Error saving user ${user.email} to Firestore:`, error);
     throw error;
@@ -274,26 +295,26 @@ export async function bulkSyncLocalToFirestore(
     // 1. Sync Farms
     for (const farm of farms) {
       const { id, ...data } = farm;
-      await setDoc(doc(db, "farms", id), data);
+      await setDoc(doc(db, "farms", id), cleanFirestoreData(data));
     }
 
     // 2. Sync Cows
     for (const cow of cows) {
       const { id, ...data } = cow;
-      await setDoc(doc(db, "cows", id), data);
+      await setDoc(doc(db, "cows", id), cleanFirestoreData(data));
     }
 
     // 3. Sync Events
     for (const event of events) {
       const { id, ...data } = event;
-      await setDoc(doc(db, "events", id), data);
+      await setDoc(doc(db, "events", id), cleanFirestoreData(data));
     }
 
     // 4. Sync Users
     for (const user of users) {
       const { email, ...data } = user;
       const cleanEmail = email.trim().toLowerCase();
-      await setDoc(doc(db, "users", cleanEmail), data);
+      await setDoc(doc(db, "users", cleanEmail), cleanFirestoreData(data));
     }
   } catch (error) {
     console.error("Bulk sync to Firestore failed:", error);
